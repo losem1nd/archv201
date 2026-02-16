@@ -4179,6 +4179,7 @@ body.low-spec .tab-content.tab-leave > * > * {
             this.deviceMemory = Number(navigator.deviceMemory || 8);
             this.hardwareThreads = Number(navigator.hardwareConcurrency || 4);
             this.rafQueue = new Set();
+            this.rafScheduled = false;
             this.fpsSamples = [];
             this.lastFrameTime = 0;
             this.performanceDowngraded = false;
@@ -4255,11 +4256,28 @@ body.low-spec .tab-content.tab-leave > * > * {
             this.rafQueue.add(task);
             if (this.rafScheduled) return;
             this.rafScheduled = true;
-            requestAnimationFrame(() => {
-                this.rafQueue.forEach((fn) => fn());
+
+            const flushQueue = () => {
+                const frameTasks = Array.from(this.rafQueue);
                 this.rafQueue.clear();
+
+                frameTasks.forEach((fn) => {
+                    try {
+                        fn();
+                    } catch (error) {
+                        console.error('Motion task failed:', error);
+                    }
+                });
+
+                if (this.rafQueue.size > 0) {
+                    requestAnimationFrame(flushQueue);
+                    return;
+                }
+
                 this.rafScheduled = false;
-            });
+            };
+
+            requestAnimationFrame(flushQueue);
         }
 
         attachParallaxHandlers() {
