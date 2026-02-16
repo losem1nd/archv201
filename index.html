@@ -204,11 +204,14 @@
     }
 
 
-    :root {
+:root {
         --motion-ease-standard: cubic-bezier(0.22, 1, 0.36, 1);
         --motion-ease-spring: cubic-bezier(0.16, 1, 0.3, 1);
         --motion-duration-fast: 220ms;
         --motion-duration-medium: 420ms;
+        --motion-depth-scale: 1;
+        --motion-glass-blur: 22px;
+        --motion-shadow-strength: 1;
     }
 
     .motion-full .glass-card,
@@ -299,10 +302,22 @@
         box-shadow: 0 0 9px rgba(165, 205, 255, 0.5);
     }
 
-    body.low-spec .particle-layer,
-    body.motion-reduced .particle-layer {
+body.low-spec .particle-layer,
+body.motion-reduced .particle-layer {
         display: none !important;
-    }
+}
+
+body.motion-tier-balanced {
+    --motion-depth-scale: 0.72;
+    --motion-glass-blur: 14px;
+    --motion-shadow-strength: 0.78;
+}
+
+body.motion-tier-power-save {
+    --motion-depth-scale: 0.45;
+    --motion-glass-blur: 8px;
+    --motion-shadow-strength: 0.55;
+}
 
     @media (prefers-reduced-motion: reduce) {
         body:not(.force-motion) *,
@@ -654,6 +669,7 @@ html, body {
     --glass-bg: rgba(255, 255, 255, 0.65);
     --glass-border: rgba(255, 255, 255, 0.5);
     --glass-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.15);
+    --glass-shadow-strength: var(--motion-shadow-strength, 1);
     --accent-color: #4f46e5;
     --danger-color: #ff4b4b;
     --nav-active: rgba(0, 0, 0, 0.05);
@@ -727,10 +743,10 @@ code, .modern-details {
 
 .glass-panel, .glass-card {
     background: var(--glass-bg);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
+    backdrop-filter: blur(calc(var(--motion-glass-blur, 22px) * 0.8));
+    -webkit-backdrop-filter: blur(calc(var(--motion-glass-blur, 22px) * 0.8));
     border: 1px solid var(--glass-border);
-    box-shadow: var(--glass-shadow);
+    box-shadow: var(--glass-shadow), 0 12px 30px rgba(10, 16, 30, calc(0.14 * var(--glass-shadow-strength, 1)));
 }
 
 .glass-card {
@@ -738,14 +754,14 @@ code, .modern-details {
     background: var(--glass-bg) !important; 
 
     /* Apply blur to all cards */
-    backdrop-filter: blur(15px) saturate(160%) !important;
-    -webkit-backdrop-filter: blur(15px) saturate(160%) !important;
+    backdrop-filter: blur(var(--motion-glass-blur, 22px)) saturate(160%) !important;
+    -webkit-backdrop-filter: blur(var(--motion-glass-blur, 22px)) saturate(160%) !important;
 
     border: 1px solid var(--glass-border);
     border-radius: 16px;
     padding: 25px;
     margin-bottom: 20px;
-    box-shadow: var(--glass-shadow);
+    box-shadow: var(--glass-shadow), 0 16px 32px rgba(0, 0, 0, calc(0.22 * var(--glass-shadow-strength, 1)));
 }
 
 /* SIDEBAR */
@@ -972,9 +988,20 @@ body.dark-theme .search-bar { background: rgba(255,255,255,0.1); }
 }
 
 .snackbar {
-    background: #333; color: white; padding: 12px 25px; border-radius: 50px;
-    box-shadow: 0 10px 20px rgba(0,0,0,0.3); margin-top: 10px;
-    animation: slideUp 0.3s ease-out;
+    background: rgba(16, 18, 25, 0.9);
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    color: white;
+    padding: 12px 25px;
+    border-radius: 50px;
+    box-shadow: 0 16px 35px rgba(0,0,0,0.35);
+    margin-top: 10px;
+    transform: translate3d(0, 20px, 0);
+    opacity: 0;
+    animation: slideUp 0.32s var(--motion-ease-standard) forwards;
+}
+
+.snackbar.snackbar-leave {
+    animation: slideDown 0.28s var(--motion-ease-standard) forwards;
 }
 
 /* =========================================
@@ -982,6 +1009,7 @@ body.dark-theme .search-bar { background: rgba(255,255,255,0.1); }
    ========================================= */
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 @keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+@keyframes slideDown { from { transform: translateY(0); opacity: 1; } to { transform: translateY(16px); opacity: 0; } }
 
 /* BOTTOM CONTROLS */
 .bottom-controls { margin-top: auto; display: flex; gap: 5px; flex-wrap: wrap; }
@@ -2782,11 +2810,27 @@ body.low-spec .tab-content.tab-leave > * > * {
     animation: terminalLineIn 180ms ease forwards;
 }
 
+.terminal-line.typing {
+    position: relative;
+}
+
+.terminal-line.typing::after {
+    content: '▍';
+    margin-left: 2px;
+    color: #8df4ff;
+    animation: terminalCursorBlink 820ms steps(2, end) infinite;
+}
+
 @keyframes terminalLineIn {
     to {
         opacity: 1;
         transform: translateY(0);
     }
+}
+
+@keyframes terminalCursorBlink {
+    0%, 45% { opacity: 1; }
+    50%, 100% { opacity: 0; }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -4090,7 +4134,11 @@ body.low-spec .tab-content.tab-leave > * > * {
         sb.className = "snackbar";
         sb.innerText = msg;
         container.appendChild(sb);
-        setTimeout(() => sb.remove(), 3000);
+
+        const life = 3000;
+        const leaveDelay = 260;
+        window.setTimeout(() => sb.classList.add('snackbar-leave'), Math.max(0, life - leaveDelay));
+        window.setTimeout(() => sb.remove(), life + 20);
     }
 
     function isPerformanceModeEnabled() {
@@ -4127,6 +4175,9 @@ body.low-spec .tab-content.tab-leave > * > * {
             this.performanceMode = isPerformanceModeEnabled();
             this.reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
             this.profile = 'full';
+            this.motionTier = 'full';
+            this.deviceMemory = Number(navigator.deviceMemory || 8);
+            this.hardwareThreads = Number(navigator.hardwareConcurrency || 4);
             this.rafQueue = new Set();
             this.fpsSamples = [];
             this.lastFrameTime = 0;
@@ -4160,6 +4211,7 @@ body.low-spec .tab-content.tab-leave > * > * {
                 reducedMotionMedia.addListener(this.reducedMotionListener);
             }
             document.addEventListener('visibilitychange', this.visibilityHandler, { passive: true });
+            window.addEventListener('resize', () => this.refreshParticleLayout(), { passive: true });
         }
 
         onVisibilityChange() {
@@ -4183,8 +4235,19 @@ body.low-spec .tab-content.tab-leave > * > * {
         updateProfile() {
             const shouldReduce = !this.enabled || this.performanceMode || this.reduceMotion || this.performanceDowngraded;
             this.profile = shouldReduce ? 'reduced' : 'full';
+
+            let tier = 'full';
+            if (this.profile !== 'full') {
+                tier = 'power-save';
+            } else if (this.deviceMemory <= 4 || this.hardwareThreads <= 4) {
+                tier = 'balanced';
+            }
+
+            this.motionTier = tier;
             document.body.classList.toggle('motion-full', this.profile === 'full');
             document.body.classList.toggle('motion-reduced', this.profile !== 'full');
+            document.body.classList.toggle('motion-tier-balanced', this.motionTier === 'balanced');
+            document.body.classList.toggle('motion-tier-power-save', this.motionTier === 'power-save');
             this.ensureParticleLayer();
         }
 
@@ -4230,13 +4293,21 @@ body.low-spec .tab-content.tab-leave > * > * {
 
         applyParallax(xPercent, yPercent) {
             this.runFrame(() => {
-                const shiftX = ((xPercent - 50) / 50) * 8;
-                const shiftY = ((yPercent - 50) / 50) * 8;
+                const depthScale = this.motionTier === 'full' ? 1 : this.motionTier === 'balanced' ? 0.72 : 0.4;
+                const shiftX = ((xPercent - 50) / 50) * 8 * depthScale;
+                const shiftY = ((yPercent - 50) / 50) * 8 * depthScale;
                 document.documentElement.style.setProperty('--parallax-x', xPercent.toFixed(2));
                 document.documentElement.style.setProperty('--parallax-y', yPercent.toFixed(2));
                 document.documentElement.style.setProperty('--parallax-shift-x', `${shiftX.toFixed(2)}px`);
                 document.documentElement.style.setProperty('--parallax-shift-y', `${shiftY.toFixed(2)}px`);
             });
+        }
+
+        refreshParticleLayout() {
+            if (!this.particleLayer) return;
+            this.particleLayer.replaceChildren();
+            this.particles = [];
+            this.ensureParticleLayer();
         }
 
         ensureParticleLayer() {
@@ -4254,14 +4325,16 @@ body.low-spec .tab-content.tab-leave > * > * {
 
             if (this.particles.length) return;
 
-            const particleCount = Math.min(18, Math.max(8, Math.round(window.innerWidth / 120)));
+            const tierFactor = this.motionTier === 'full' ? 1 : this.motionTier === 'balanced' ? 0.65 : 0.35;
+            const particleCount = Math.round(Math.min(18, Math.max(8, window.innerWidth / 120)) * tierFactor);
             for (let i = 0; i < particleCount; i++) {
                 const node = document.createElement('span');
                 node.className = 'particle';
                 const size = (Math.random() * 3 + 2).toFixed(2);
                 const x = Math.random() * window.innerWidth;
                 const y = Math.random() * window.innerHeight;
-                const speed = (Math.random() * 0.2 + 0.06) * (Math.random() > 0.5 ? 1 : -1);
+                const speedScale = this.motionTier === 'full' ? 1 : this.motionTier === 'balanced' ? 0.75 : 0.55;
+                const speed = (Math.random() * 0.2 + 0.06) * speedScale * (Math.random() > 0.5 ? 1 : -1);
                 node.style.setProperty('--size', `${size}px`);
                 node.style.transform = `translate3d(${x}px, ${y}px, 0)`;
                 this.particleLayer.appendChild(node);
@@ -5951,7 +6024,7 @@ body.low-spec .tab-content.tab-leave > * > * {
 
             const line = lines[lineIndex];
             const lineEl = document.createElement('div');
-            lineEl.className = 'terminal-line';
+            lineEl.className = 'terminal-line typing';
             target.appendChild(lineEl);
 
             let charIndex = 0;
@@ -5961,6 +6034,7 @@ body.low-spec .tab-content.tab-leave > * > * {
                     charIndex++;
                     setTimeout(typeChar, typingDelay);
                 } else {
+                    lineEl.classList.remove('typing');
                     lineIndex++;
                     setTimeout(typeLine, lineDelay);
                 }
